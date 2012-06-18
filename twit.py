@@ -48,15 +48,9 @@ def getLinksFromData(data):
 	return [img["short_id"] for img in data["images"]]
 
 def download(link, outdir):
-	def copyFile(src,dst,bufsiz=4096):
-		while True:
-			buf = src.read(bufsiz)
-			if buf: dst.write(buf)
-			else: break
-		src.close()
-		dst.close()
+	def copyFile(src,dst):
+		dst.write(src.read())
 
-#	sleep(dice()/2)
 	src = urlopen(link)
 	filename = path.join(options.outdir,link.split('/')[-1]+'.'+src.info().getsubtype())
 	try:
@@ -79,9 +73,6 @@ def threadedDownload(links, outdir):
 		downloadthread = Thread(target=downloadWorker, args=(link, outdir))
 		logger(3,"starting thread")
 		downloadthread.start()
-
-def dice(num=1,sides=6):
-    return sum(randrange(sides)+1 for die in range(num))
 
 parser = OptionParser()
 parser.add_option("-d", "--directory", dest="outdir", default=".",	help="specify an output directory")
