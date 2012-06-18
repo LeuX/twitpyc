@@ -3,6 +3,7 @@ from time import strftime, sleep
 from json import loads
 from Queue import LifoQueue, Queue
 from threading import Thread, Lock, Semaphore 
+from urllib2 import urlopen, HTTPError
 import sys
 
 #for testing threading lib
@@ -16,38 +17,51 @@ TESTJSON = 		'[{"id":"19049088","short_id":"bcadc"},{"id":"18471504","short_id":
 # need to add [ before and ] after the downloaded string
 
 def logger(lvl, msg):
-	logLock.acquire()
-	if options.verbose and (lvl < options.loglevel):
+	if options.verbose and (lvl <= int(options.loglevel)):
+		logLock.acquire()
 		print "%s\t%s" % (strftime(TIMEFORMAT), msg)
-	logLock.release()
+		logLock.release()
 
-def getJSONForUser(user):
-	# download from: DOWNLOADURL % (user, page-iterator)
-	# meanwhile just some copy-and-paste for debug reasons
-	return TESTJSON 
+def getDataForUser(user):
+	def nextpage(i):
+		try:
+			restObj = urlopen(LISTURL % (user,i))
+			return loads(restObj.read())
+		except HTTPError:
+			return None
 
-def getDataFromJSON(jsonstring):
-	return loads(jsonstring)
+	data = nextpage(1)
+	i=2
+	while True: 
+		pageN=nextpage(i)
+		if not pageN:
+			break
+		i+=1
+		data["images"].extend(pageN["images"])
+
+	#TODO no good style, should use exceptions when, eg, there is no such user.
+	return data
+
+#	print [img["short_id"] for img in data["images"]]
+#	exit()
 
 def getLinksFromData(data):
-	result = []
-	for pic in data:
-		result.append(pic[u'short_id'])
-	return result
+	return [img["short_id"] for img in data["images"]]
 
 def download(link, outdir):
-	#TODO
-	sleep(dice())
+	sleep(dice()/10)
 
 def downloadWorker(link, outdir):
+	logger(2,"starting download of %s" % link)
 	download(link, outdir)
+	logger(2,"finished download of %s" % link)
 	threadLock.release()
 
 def threadedDownload(links, outdir):
 	for link in links:
 		threadLock.acquire()
 		downloadthread = Thread(target=downloadWorker, args=(link, outdir))
-		logger(3,"starting download of %s" % link)
+		logger(3,"starting thread")
 		downloadthread.start()
 
 def dice(num=1,sides=6):
@@ -71,13 +85,8 @@ if (len(args) == 0):
 	logger(0,"Plesase specify a Username")
 	sys.exit(1)
 
-
 for user in args:
 	logger(0,"Downloading all Pictures from %s" % user)
-
-	pic_ids = getLinksFromData(getDataFromJSON(getJSONForUser(user)))
-	print pic_ids
-	
+	pic_ids = getLinksFromData(getDataForUser(user))
 	links = [DOWNLOADURL % pic_id for pic_id in pic_ids]
-
 	threadedDownload(links, options.outdir)
