@@ -7,9 +7,6 @@ from urllib2 import urlopen, HTTPError
 from os import path
 import sys
 
-#for testing threading lib
-from random import randrange
-
 TIMEFORMAT = 	"%H:%M:%S"
 LISTURL	=		"http://api.twitpic.com/2/users/show.json?username=%s&page=%s"
 DOWNLOADURL =	"http://twitpic.com/show/full/%s"
